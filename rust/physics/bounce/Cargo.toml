@@ -1,0 +1,12 @@
+[package]
+name    = "bounce"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "bounce"
+path = "src/main.rs"
+
+[[bin]]
+name = "bench_bounce"
+path = "src/bench.rs"

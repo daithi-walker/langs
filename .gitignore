@@ -1,0 +1,40 @@
+# C build artifacts
+*.o
+*.a
+*.dSYM/
+
+# C binaries (no extension)
+c/hello_world/hello
+c/physics/bounce/bench_bounce
+c/physics/bounce/main
+c/qc/double_slit/double_slit
+c/qc/hydrogen_orbitals/orbitals
+c/qc/wave_packet/wave_packet
+# Test binaries (no extension, under any test/ dir)
+c/**/test/test_*
+
+# Go build artifacts
+go/*/*/main
+go/*/*/*/main
+
+# Rust build artifacts
+**/target/
+
+# Java build artifacts
+java/*/*/out/
+java/*/*/*.class
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node
+node_modules/
+dist/
+
+# Benchmark results (generated, not source)
+bench/results/
+
+# macOS
+.DS_Store

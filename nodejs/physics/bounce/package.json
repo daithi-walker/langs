@@ -1,0 +1,13 @@
+{
+  "name": "bounce",
+  "version": "0.1.0",
+  "scripts": {
+    "test":  "vitest run",
+    "bench": "ts-node src/bench.ts"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.0",
+    "vitest":     "^3.0.0",
+    "ts-node":    "^10.9.0"
+  }
+}
