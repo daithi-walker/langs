@@ -1,0 +1,18 @@
+[package]
+name = "wave_packet"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wave_packet"
+path = "src/main.rs"
+
+[[bin]]
+name = "bench_wave_packet"
+path = "src/bench.rs"
+
+[dependencies]
+rustfft = "6"
+
+[profile.release]
+opt-level = 3
