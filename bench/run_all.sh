@@ -1,99 +1,131 @@
 #!/usr/bin/env bash
-# run_all.sh — build and run all language benchmarks for a given example.
+# run_all.sh — build and run benchmarks for one or all examples.
 #
-# Usage:  ./run_all.sh [example]     (default: bounce)
-# Output: results/<example>/<lang>.json  (one JSON object per language)
+# Usage:
+#   ./run_all.sh                  run all known examples
+#   ./run_all.sh bounce           run only the bounce example
+#   ./run_all.sh wave_packet      run only the wave_packet example
 #
-# Each language binary is expected to print one JSON line to stdout:
-#   {"lang":"<lang>","example":"<example>","mean_ns":<float>,"n":<int>}
+# Output: results/<example>/<lang>.json  (one JSON object per file)
+# Each binary prints one JSON line:
+#   {"language":"<lang>","example":"<example>","ns_per_op":<float>,"iterations":<int>}
 
 set -euo pipefail
 
-EXAMPLE="${1:-bounce}"
-RESULTS_DIR="$(dirname "$0")/results/${EXAMPLE}"
-LANGS_ROOT="$(dirname "$0")/.."
+BENCH_DIR="$(cd "$(dirname "$0")" && pwd)"
+LANGS_ROOT="${BENCH_DIR}/.."
+CARGO="${HOME}/.cargo/bin/cargo"
 
-mkdir -p "$RESULTS_DIR"
+# Ordered list of all known examples
+ALL_EXAMPLES=(bounce wave_packet)
 
-echo "==> Benchmarking example: ${EXAMPLE}"
-echo ""
-
-# ---------------------------------------------------------------------------
-# C
-# ---------------------------------------------------------------------------
-C_DIR="${LANGS_ROOT}/c/physics/${EXAMPLE}"
-if [ -d "$C_DIR" ]; then
-  echo "--- C ---"
-  make -C "$C_DIR" bench --silent
-  "$C_DIR/bench_${EXAMPLE}" | tee "${RESULTS_DIR}/c.json"
+# Which examples to run
+if [ "${1:-}" != "" ]; then
+  EXAMPLES=("$1")
 else
-  echo "Skipping C (no directory: $C_DIR)"
+  EXAMPLES=("${ALL_EXAMPLES[@]}")
 fi
 
 # ---------------------------------------------------------------------------
-# Go
+# Helper: find the example directory under any category (physics/, qc/, etc.)
 # ---------------------------------------------------------------------------
-GO_DIR="${LANGS_ROOT}/go/physics/${EXAMPLE}"
-if [ -d "$GO_DIR" ]; then
-  echo "--- Go ---"
-  (cd "$GO_DIR" && go run . --bench) | tee "${RESULTS_DIR}/go.json"
-else
-  echo "Skipping Go (no directory: $GO_DIR)"
-fi
+find_dir() {
+  local lang="$1" example="$2"
+  local base="${LANGS_ROOT}/${lang}"
+  # Search one level of subdirectories (physics/, qc/, ...)
+  for d in "${base}"/*/; do
+    if [ -d "${d}${example}" ]; then
+      echo "${d}${example}"
+      return
+    fi
+  done
+}
 
 # ---------------------------------------------------------------------------
-# Rust
+# Run one example across all languages
 # ---------------------------------------------------------------------------
-RUST_DIR="${LANGS_ROOT}/rust/physics/${EXAMPLE}"
-if [ -d "$RUST_DIR" ]; then
-  echo "--- Rust ---"
-  (cd "$RUST_DIR" && cargo build --release --bin "bench_${EXAMPLE}" -q 2>/dev/null && \
-   "./target/release/bench_${EXAMPLE}") | tee "${RESULTS_DIR}/rust.json"
-else
-  echo "Skipping Rust (no directory: $RUST_DIR)"
-fi
+run_example() {
+  local EXAMPLE="$1"
+  local RESULTS_DIR="${BENCH_DIR}/results/${EXAMPLE}"
+  mkdir -p "$RESULTS_DIR"
+
+  echo "==> Benchmarking: ${EXAMPLE}"
+  echo ""
+
+  # --- C ---
+  C_DIR="$(find_dir c "$EXAMPLE")"
+  if [ -n "$C_DIR" ] && [ -d "$C_DIR" ]; then
+    echo "--- C ---"
+    make -C "$C_DIR" bench --silent
+    "${C_DIR}/bench_${EXAMPLE}" | tee "${RESULTS_DIR}/c.json"
+  else
+    echo "Skipping C (no directory found)"
+  fi
+
+  # --- Go ---
+  GO_DIR="$(find_dir go "$EXAMPLE")"
+  if [ -n "$GO_DIR" ] && [ -d "$GO_DIR" ]; then
+    echo "--- Go ---"
+    (cd "$GO_DIR" && go run . --bench) | tee "${RESULTS_DIR}/go.json"
+  else
+    echo "Skipping Go (no directory found)"
+  fi
+
+  # --- Rust ---
+  RUST_DIR="$(find_dir rust "$EXAMPLE")"
+  if [ -n "$RUST_DIR" ] && [ -d "$RUST_DIR" ]; then
+    echo "--- Rust ---"
+    (cd "$RUST_DIR" && "$CARGO" build --release --bin "bench_${EXAMPLE}" -q 2>/dev/null && \
+     "./target/release/bench_${EXAMPLE}") | tee "${RESULTS_DIR}/rust.json"
+  else
+    echo "Skipping Rust (no directory found)"
+  fi
+
+  # --- Java ---
+  JAVA_DIR="$(find_dir java "$EXAMPLE")"
+  if [ -n "$JAVA_DIR" ] && [ -d "$JAVA_DIR" ]; then
+    echo "--- Java ---"
+    make -C "$JAVA_DIR" bench --silent | tee "${RESULTS_DIR}/java.json"
+  else
+    echo "Skipping Java (no directory found)"
+  fi
+
+  # --- Python (pure) ---
+  PY_DIR="$(find_dir python "$EXAMPLE")"
+  if [ -n "$PY_DIR" ] && [ -d "$PY_DIR" ] && [ -f "${PY_DIR}/bench.py" ]; then
+    echo "--- Python (pure) ---"
+    (cd "$PY_DIR" && python3 bench.py) | tee "${RESULTS_DIR}/python.json"
+  else
+    echo "Skipping Python/pure (no bench.py found)"
+  fi
+
+  # --- Python (numpy) ---
+  if [ -n "${PY_DIR:-}" ] && [ -d "${PY_DIR:-}" ] && [ -f "${PY_DIR}/bench_numpy.py" ]; then
+    echo "--- Python (numpy) ---"
+    (cd "$PY_DIR" && python3 bench_numpy.py) | tee "${RESULTS_DIR}/python_numpy.json"
+  fi
+
+  # --- Node.js ---
+  NODE_DIR="$(find_dir nodejs "$EXAMPLE")"
+  if [ -n "$NODE_DIR" ] && [ -d "$NODE_DIR" ]; then
+    echo "--- Node.js ---"
+    (cd "$NODE_DIR" && npm install --silent 2>/dev/null && \
+     npx ts-node src/bench.ts 2>/dev/null) | tee "${RESULTS_DIR}/nodejs.json"
+  else
+    echo "Skipping Node.js (no directory found)"
+  fi
+
+  echo ""
+  echo "Results in ${RESULTS_DIR}/"
+  echo ""
+}
 
 # ---------------------------------------------------------------------------
-# Java
+# Main
 # ---------------------------------------------------------------------------
-JAVA_DIR="${LANGS_ROOT}/java/physics/${EXAMPLE}"
-if [ -d "$JAVA_DIR" ]; then
-  echo "--- Java ---"
-  (cd "$JAVA_DIR" && javac -d out src/BallPhysics.java src/BenchBounce.java 2>/dev/null && java -cp out BenchBounce) | tee "${RESULTS_DIR}/java.json"
-else
-  echo "Skipping Java (no directory: $JAVA_DIR)"
-fi
+for ex in "${EXAMPLES[@]}"; do
+  run_example "$ex"
+done
 
-# ---------------------------------------------------------------------------
-# Python (pure)
-# ---------------------------------------------------------------------------
-PY_DIR="${LANGS_ROOT}/python/physics/${EXAMPLE}"
-if [ -d "$PY_DIR" ]; then
-  echo "--- Python (pure) ---"
-  (cd "$PY_DIR" && python3 bench.py) | tee "${RESULTS_DIR}/python.json"
-else
-  echo "Skipping Python (no directory: $PY_DIR)"
-fi
-
-# ---------------------------------------------------------------------------
-# Python (numpy)
-# ---------------------------------------------------------------------------
-if [ -d "$PY_DIR" ] && [ -f "${PY_DIR}/bench_numpy.py" ]; then
-  echo "--- Python (numpy) ---"
-  (cd "$PY_DIR" && python3 bench_numpy.py) | tee "${RESULTS_DIR}/python_numpy.json"
-fi
-
-# ---------------------------------------------------------------------------
-# Node.js
-# ---------------------------------------------------------------------------
-NODE_DIR="${LANGS_ROOT}/nodejs/physics/${EXAMPLE}"
-if [ -d "$NODE_DIR" ]; then
-  echo "--- Node.js ---"
-  (cd "$NODE_DIR" && npx --yes ts-node src/bench.ts 2>/dev/null) | tee "${RESULTS_DIR}/nodejs.json"
-else
-  echo "Skipping Node.js (no directory: $NODE_DIR)"
-fi
-
-echo ""
-echo "==> Results written to ${RESULTS_DIR}/"
-echo "==> Run: python3 $(dirname "$0")/report.py ${EXAMPLE}  to generate HTML"
+echo "==> All done. Generate the report with:"
+echo "    python3 ${BENCH_DIR}/report.py"

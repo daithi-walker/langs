@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
-"""Generate an HTML benchmark report from JSON result files.
+"""Generate an HTML benchmark matrix report from JSON result files.
 
 Usage:
-    python3 report.py [example]     (default: bounce)
+    python3 report.py              generates matrix across all examples
+    python3 report.py bounce       generates single-example report
 
 Reads:  results/<example>/<lang>.json
-Writes: results/<example>/report.html
+Writes: results/report.html  (matrix)  or  results/<example>/report.html  (single)
 
-Chart convention: longer bar = faster (more calls/sec).
-Multiplier shown as slowdown relative to the fastest language.
+Chart convention: longer bar = faster (throughput view).
 """
 
 import json
 import sys
+import platform
+import subprocess
 from pathlib import Path
 
-EXAMPLE = sys.argv[1] if len(sys.argv) > 1 else "bounce"
-RESULTS = Path(__file__).parent / "results" / EXAMPLE
+RESULTS_ROOT = Path(__file__).parent / "results"
+
+LANG_ORDER = ["c", "rust", "go", "java", "python_numpy", "python", "nodejs"]
 
 LANG_DISPLAY = {
     "c":            "C",
@@ -25,146 +28,178 @@ LANG_DISPLAY = {
     "java":         "Java",
     "python":       "Python (pure)",
     "python_numpy": "Python (numpy)",
-    "nodejs":       "Node.js (TS)",
+    "nodejs":       "Node.js",
 }
 
 LANG_COLOR = {
     "c":            "#5b9bd5",
-    "go":           "#00acd7",
     "rust":         "#ce422b",
+    "go":           "#00acd7",
     "java":         "#f89820",
-    "python":       "#ffd43b",
     "python_numpy": "#4caf50",
+    "python":       "#ffd43b",
     "nodejs":       "#68a063",
 }
 
-
-def load_results() -> list[dict]:
-    results = []
-    for path in sorted(RESULTS.glob("*.json")):
-        if path.stem == "report":
-            continue
-        lang = path.stem
-        try:
-            data = json.loads(path.read_text())
-            data["display"] = LANG_DISPLAY.get(lang, data.get("lang", lang))
-            data["color"]   = LANG_COLOR.get(lang, "#aaaaaa")
-            results.append(data)
-        except Exception as e:
-            print(f"Warning: could not read {path}: {e}", file=sys.stderr)
-    return results
+EXAMPLE_LABEL = {
+    "bounce":      "Bouncing ball physics",
+    "wave_packet": "Wave packet TDSE step",
+}
 
 
-def bar_html(results: list[dict]) -> str:
-    if not results:
-        return "<p>No results found.</p>"
-
-    # Sort fastest first (lowest ns = fastest)
-    sorted_results = sorted(results, key=lambda r: r["mean_ns"])
-    fastest_ns = sorted_results[0]["mean_ns"]
-
-    # Bar width: fastest gets 100%, others scaled proportionally
-    # (longer bar = faster — throughput view)
-    rows = ""
-    for r in sorted_results:
-        pct      = fastest_ns / r["mean_ns"] * 100   # inverted: fastest = 100%
-        slowdown = r["mean_ns"] / fastest_ns
-        label    = f"{r['mean_ns']:.2f} ns/call"
-        note     = r.get("note", "")
-        mult_str = "fastest" if slowdown < 1.01 else f"{slowdown:.1f}× slower"
-        note_html = f' <span class="note-tag">{note}</span>' if note else ""
-
-        rows += f"""
-        <tr>
-          <td class="lang">{r['display']}{note_html}</td>
-          <td class="bar-cell">
-            <div class="bar-track">
-              <div class="bar" style="width:{pct:.1f}%;background:{r['color']}">
-                <span class="bar-label">{label}</span>
-              </div>
-            </div>
-          </td>
-          <td class="mult">{mult_str}</td>
-        </tr>"""
-
-    return f"""
-    <p class="chart-note">Longer bar = faster &nbsp;|&nbsp; sorted fastest → slowest</p>
-    <table class='results'>{rows}</table>"""
-
-
-def generate_html(results: list[dict]) -> str:
-    import platform
-    import subprocess
+def cpu_name() -> str:
     try:
-        cpu = subprocess.check_output(
+        return subprocess.check_output(
             ["sysctl", "-n", "machdep.cpu.brand_string"], text=True
         ).strip()
     except Exception:
-        cpu = platform.processor() or "unknown"
+        return platform.processor() or "unknown"
 
-    bars = bar_html(results)
+
+def load_example(example: str) -> dict[str, dict]:
+    """Return {lang_key: result_dict} for one example."""
+    d = RESULTS_ROOT / example
+    if not d.is_dir():
+        return {}
+    results = {}
+    for path in d.glob("*.json"):
+        if path.stem == "report":
+            continue
+        try:
+            data = json.loads(path.read_text())
+            # Support both key names
+            ns = data.get("ns_per_op") or data.get("mean_ns")
+            if ns is not None:
+                results[path.stem] = {"ns": ns, "raw": data}
+        except Exception as e:
+            print(f"Warning: {path}: {e}", file=sys.stderr)
+    return results
+
+
+def bar_row(lang: str, ns: float, fastest_ns: float, color: str) -> str:
+    pct      = fastest_ns / ns * 100
+    slowdown = ns / fastest_ns
+    mult_str = "fastest" if slowdown < 1.01 else f"{slowdown:.1f}×"
+    label    = f"{ns:,.0f} ns"
+    return f"""
+      <tr>
+        <td class="lang">{LANG_DISPLAY.get(lang, lang)}</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:{pct:.1f}%;background:{color}">
+              <span class="bar-label">{label}</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">{mult_str}</td>
+      </tr>"""
+
+
+def example_section(example: str, results: dict[str, dict]) -> str:
+    if not results:
+        return f"<p class='no-data'>No data for <code>{example}</code>.</p>"
+
+    fastest_ns = min(r["ns"] for r in results.values())
+    label = EXAMPLE_LABEL.get(example, example)
+
+    rows = ""
+    for lang in LANG_ORDER:
+        if lang not in results:
+            continue
+        r = results[lang]
+        rows += bar_row(lang, r["ns"], fastest_ns, LANG_COLOR.get(lang, "#aaa"))
+
+    # Also render any langs not in LANG_ORDER
+    for lang, r in sorted(results.items()):
+        if lang not in LANG_ORDER:
+            rows += bar_row(lang, r["ns"], fastest_ns, "#aaa")
+
+    return f"""
+  <section>
+    <h2>{label} <code class="ex-tag">{example}</code></h2>
+    <p class="chart-note">Longer bar = faster &nbsp;|&nbsp; sorted by definition order</p>
+    <table class="results">{rows}
+    </table>
+  </section>"""
+
+
+def generate_matrix_html(examples: list[str]) -> str:
+    sections = ""
+    for ex in examples:
+        data = load_example(ex)
+        sections += example_section(ex, data)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Benchmark — {EXAMPLE}</title>
+<title>Benchmark Matrix</title>
 <style>
-  body        {{ font-family: -apple-system, sans-serif; max-width: 920px;
-                margin: 40px auto; padding: 0 20px; color: #222; }}
-  h1          {{ font-size: 1.6rem; margin-bottom: 0.2rem; }}
-  .meta       {{ color: #666; font-size: 0.9rem; margin-bottom: 2rem; }}
-  table.results {{ width: 100%; border-collapse: collapse; margin-top: 0.5rem; }}
-  td          {{ padding: 7px 8px; vertical-align: middle; }}
-  td.lang     {{ font-weight: 600; white-space: nowrap; width: 160px; font-size: 0.95rem; }}
+  body        {{ font-family: -apple-system, sans-serif; max-width: 960px;
+                margin: 40px auto; padding: 0 24px; color: #222; }}
+  h1          {{ font-size: 1.7rem; margin-bottom: 0.2rem; }}
+  h2          {{ font-size: 1.1rem; margin: 2rem 0 0.3rem; color: #333; }}
+  .meta       {{ color: #777; font-size: 0.88rem; margin-bottom: 2rem; }}
+  .ex-tag     {{ font-size: 0.8rem; color: #888; background: #f3f3f3;
+                border-radius: 4px; padding: 2px 7px; margin-left: 6px; }}
+  section     {{ border-top: 1px solid #eee; padding-top: 0.5rem; margin-bottom: 1rem; }}
+  table.results {{ width: 100%; border-collapse: collapse; margin-top: 0.4rem; }}
+  td          {{ padding: 6px 8px; vertical-align: middle; }}
+  td.lang     {{ font-weight: 600; white-space: nowrap; width: 150px; font-size: 0.9rem; }}
   td.bar-cell {{ width: 100%; }}
-  td.mult     {{ white-space: nowrap; color: #888; font-size: 0.82rem;
-                text-align: right; width: 110px; }}
-  .bar-track  {{ background: #f0f0f0; border-radius: 4px; width: 100%; height: 30px;
+  td.mult     {{ white-space: nowrap; color: #999; font-size: 0.8rem;
+                text-align: right; width: 80px; }}
+  .bar-track  {{ background: #f0f0f0; border-radius: 4px; width: 100%; height: 28px;
                 display: flex; align-items: center; }}
-  .bar        {{ height: 30px; border-radius: 4px; display: flex; align-items: center;
-                min-width: 4px; transition: width 0.3s; }}
-  .bar-label  {{ color: #fff; font-size: 0.78rem; padding: 0 10px;
-                text-shadow: 0 1px 2px rgba(0,0,0,.5); white-space: nowrap; }}
-  .chart-note {{ font-size: 0.8rem; color: #999; margin-bottom: 0.3rem; }}
-  .note-tag   {{ font-weight: normal; font-size: 0.75rem; color: #888;
-                background: #f0f0f0; border-radius: 3px; padding: 1px 5px;
-                margin-left: 4px; }}
-  .notes      {{ margin-top: 2rem; font-size: 0.85rem; color: #555;
+  .bar        {{ height: 28px; border-radius: 4px; display: flex; align-items: center;
+                min-width: 4px; }}
+  .bar-label  {{ color: #fff; font-size: 0.76rem; padding: 0 8px;
+                text-shadow: 0 1px 2px rgba(0,0,0,.4); white-space: nowrap; }}
+  .chart-note {{ font-size: 0.78rem; color: #bbb; margin: 0 0 0.2rem; }}
+  .no-data    {{ color: #aaa; font-size: 0.85rem; }}
+  footer      {{ margin-top: 3rem; font-size: 0.78rem; color: #bbb;
                 border-top: 1px solid #eee; padding-top: 1rem; }}
-  .notes li   {{ margin-bottom: 0.4rem; }}
-  hr          {{ border: none; border-top: 1px solid #eee; margin: 1.5rem 0; }}
 </style>
 </head>
 <body>
-<h1>Benchmark: <code>{EXAMPLE}</code></h1>
-<p class="meta">
-  Function: <code>ball.update()</code> — position + wall reflection per call<br>
-  Machine: {cpu}
-</p>
-<hr>
-{bars}
-<ul class="notes">
-  <li><strong>C, Rust</strong>: compiled to native ARM64 at <code>-O2</code>.</li>
-  <li><strong>Rust</strong>: uses <code>std::hint::black_box</code> to prevent loop elimination.</li>
-  <li><strong>Java</strong>: 100,000 warm-up iterations before timing to let the JIT compile.</li>
-  <li><strong>Go, Node.js</strong>: also JIT-compiled at runtime; Go's is simpler, V8 (Node) is highly optimised.</li>
-  <li><strong>Python (pure)</strong>: CPython interpreter, plain Python loop — one ball, 1M iterations.</li>
-  <li><strong>Python (numpy)</strong>: 10,000 balls updated simultaneously per call via numpy's
-      compiled C backend. Time shown is ns <em>per ball</em>, making it comparable to other rows.</li>
-</ul>
+<h1>Benchmark Matrix</h1>
+<p class="meta">Machine: {cpu_name()}<br>
+Longer bar = faster. Each cell shows ns/op for that language × example combination.</p>
+{sections}
+<footer>
+  Generated by bench/report.py &nbsp;|&nbsp;
+  Languages: C (clang -O2), Rust (release), Go, Java (JIT), Python numpy, Node.js (V8)
+</footer>
 </body>
 </html>"""
 
 
 def main() -> None:
-    results = load_results()
-    if not results:
-        print(f"No result files found in {RESULTS}", file=sys.stderr)
-        sys.exit(1)
+    if len(sys.argv) > 1:
+        # Single example mode
+        example = sys.argv[1]
+        data = load_example(example)
+        if not data:
+            print(f"No results found for {example}", file=sys.stderr)
+            sys.exit(1)
+        html = generate_matrix_html([example])
+        out = RESULTS_ROOT / example / "report.html"
+        out.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        # Matrix mode — all examples that have results
+        examples = sorted(
+            d.name for d in RESULTS_ROOT.iterdir()
+            if d.is_dir() and any(d.glob("*.json"))
+        )
+        if not examples:
+            print(f"No results found in {RESULTS_ROOT}", file=sys.stderr)
+            sys.exit(1)
+        # Respect preferred order
+        ordered = [e for e in LANG_ORDER if e in examples]
+        ordered += [e for e in examples if e not in ordered]
+        html = generate_matrix_html(examples)
+        out = RESULTS_ROOT / "report.html"
 
-    html = generate_html(results)
-    out = RESULTS / "report.html"
     out.write_text(html)
     print(f"Report written to {out}")
     print(f"Open with: open {out}")
