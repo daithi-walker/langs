@@ -1,0 +1,1 @@
+{"lang": "python-numpy", "example": "bounce", "mean_ns": 2.9449, "n": 100000000, "note": "10000 balls vectorised"}

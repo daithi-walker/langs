@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Benchmark Matrix</title>
+<style>
+  body        { font-family: -apple-system, sans-serif; max-width: 960px;
+                margin: 40px auto; padding: 0 24px; color: #222; }
+  h1          { font-size: 1.7rem; margin-bottom: 0.2rem; }
+  h2          { font-size: 1.1rem; margin: 2rem 0 0.3rem; color: #333; }
+  .meta       { color: #777; font-size: 0.88rem; margin-bottom: 2rem; }
+  .ex-tag     { font-size: 0.8rem; color: #888; background: #f3f3f3;
+                border-radius: 4px; padding: 2px 7px; margin-left: 6px; }
+  section     { border-top: 1px solid #eee; padding-top: 0.5rem; margin-bottom: 1rem; }
+  table.results { width: 100%; border-collapse: collapse; margin-top: 0.4rem; }
+  td          { padding: 6px 8px; vertical-align: middle; }
+  td.lang     { font-weight: 600; white-space: nowrap; width: 150px; font-size: 0.9rem; }
+  td.bar-cell { width: 100%; }
+  td.mult     { white-space: nowrap; color: #999; font-size: 0.8rem;
+                text-align: right; width: 80px; }
+  .bar-track  { background: #f0f0f0; border-radius: 4px; width: 100%; height: 28px;
+                display: flex; align-items: center; }
+  .bar        { height: 28px; border-radius: 4px; display: flex; align-items: center;
+                min-width: 4px; }
+  .bar-label  { color: #fff; font-size: 0.76rem; padding: 0 8px;
+                text-shadow: 0 1px 2px rgba(0,0,0,.4); white-space: nowrap; }
+  .chart-note { font-size: 0.78rem; color: #bbb; margin: 0 0 0.2rem; }
+  .no-data    { color: #aaa; font-size: 0.85rem; }
+  footer      { margin-top: 3rem; font-size: 0.78rem; color: #bbb;
+                border-top: 1px solid #eee; padding-top: 1rem; }
+</style>
+</head>
+<body>
+<h1>Benchmark Matrix</h1>
+<p class="meta">Machine: Apple M4 Pro<br>
+Longer bar = faster. Each cell shows ns/op for that language × example combination.</p>
+
+  <section>
+    <h2>Bouncing ball physics <code class="ex-tag">bounce</code></h2>
+    <p class="chart-note">Longer bar = faster &nbsp;|&nbsp; sorted by definition order</p>
+    <table class="results">
+      <tr>
+        <td class="lang">C</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:38.4%;background:#5b9bd5">
+              <span class="bar-label">4 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">2.6×</td>
+      </tr>
+      <tr>
+        <td class="lang">Rust</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:100.0%;background:#ce422b">
+              <span class="bar-label">2 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">fastest</td>
+      </tr>
+      <tr>
+        <td class="lang">Go</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:22.6%;background:#00acd7">
+              <span class="bar-label">7 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">4.4×</td>
+      </tr>
+      <tr>
+        <td class="lang">Java</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:49.1%;background:#f89820">
+              <span class="bar-label">3 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">2.0×</td>
+      </tr>
+      <tr>
+        <td class="lang">Python (numpy)</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:51.4%;background:#4caf50">
+              <span class="bar-label">3 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">1.9×</td>
+      </tr>
+      <tr>
+        <td class="lang">Python (pure)</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:1.0%;background:#ffd43b">
+              <span class="bar-label">152 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">100.2×</td>
+      </tr>
+      <tr>
+        <td class="lang">Node.js</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:71.5%;background:#68a063">
+              <span class="bar-label">2 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">1.4×</td>
+      </tr>
+    </table>
+  </section>
+  <section>
+    <h2>Wave packet TDSE step <code class="ex-tag">wave_packet</code></h2>
+    <p class="chart-note">Longer bar = faster &nbsp;|&nbsp; sorted by definition order</p>
+    <table class="results">
+      <tr>
+        <td class="lang">C</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:48.0%;background:#5b9bd5">
+              <span class="bar-label">6,554 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">2.1×</td>
+      </tr>
+      <tr>
+        <td class="lang">Rust</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:100.0%;background:#ce422b">
+              <span class="bar-label">3,144 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">fastest</td>
+      </tr>
+      <tr>
+        <td class="lang">Go</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:13.5%;background:#00acd7">
+              <span class="bar-label">23,367 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">7.4×</td>
+      </tr>
+      <tr>
+        <td class="lang">Java</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:15.9%;background:#f89820">
+              <span class="bar-label">19,736 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">6.3×</td>
+      </tr>
+      <tr>
+        <td class="lang">Python (numpy)</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:20.0%;background:#4caf50">
+              <span class="bar-label">15,706 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">5.0×</td>
+      </tr>
+      <tr>
+        <td class="lang">Node.js</td>
+        <td class="bar-cell">
+          <div class="bar-track">
+            <div class="bar" style="width:12.6%;background:#68a063">
+              <span class="bar-label">24,939 ns</span>
+            </div>
+          </div>
+        </td>
+        <td class="mult">7.9×</td>
+      </tr>
+    </table>
+  </section>
+<footer>
+  Generated by bench/report.py &nbsp;|&nbsp;
+  Languages: C (clang -O2), Rust (release), Go, Java (JIT), Python numpy, Node.js (V8)
+</footer>
+</body>
+</html>
