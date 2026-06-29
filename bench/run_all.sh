@@ -17,7 +17,7 @@ LANGS_ROOT="${BENCH_DIR}/.."
 CARGO="${HOME}/.cargo/bin/cargo"
 
 # Ordered list of all known examples
-ALL_EXAMPLES=(bounce wave_packet)
+ALL_EXAMPLES=(bounce wave_packet nbody)
 
 # Which examples to run
 if [ "${1:-}" != "" ]; then

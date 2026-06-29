@@ -44,6 +44,7 @@ LANG_COLOR = {
 EXAMPLE_LABEL = {
     "bounce":      "Bouncing ball physics",
     "wave_packet": "Wave packet TDSE step",
+    "nbody":       "N-body gravity (N=1000)",
 }
 
 
@@ -222,9 +223,11 @@ def generate_markdown(examples: list[str]) -> str:
         "- **Rust** (`wave_packet`): uses `rustfft` with SIMD mixed-radix algorithm.",
         "- **C** (`wave_packet`): uses FFTW single-precision (`fftwf`) with `FFTW_MEASURE`.",
         "- **Python (numpy)**: vectorized via numpy's `pocketfft` C backend — no Python loops in hot path.",
+        "- **Python (numpy)** (`nbody`): vectorized broadcasting over (N,N,3) distance matrix — no Python loops in hot path.",
         "- **Java, Go, Node.js** (`wave_packet`): pure Cooley-Tukey FFT, no SIMD.",
         "- **Java**: JIT-compiled; 200 warmup iterations before timing.",
         "- **Python (pure)** (`bounce`): CPython interpreter loop — one ball, 1M iterations.",
+        "- **Python (pure)** (`nbody`): CPython double loop — O(n²) with n=1000.",
         "",
     ]
     return "\n".join(lines)
@@ -252,7 +255,7 @@ def main() -> None:
             print(f"No results found in {RESULTS_ROOT}", file=sys.stderr)
             sys.exit(1)
         # Respect preferred order
-        examples = [e for e in ["bounce", "wave_packet"] if e in all_found]
+        examples = [e for e in ["bounce", "wave_packet", "nbody"] if e in all_found]
         examples += [e for e in all_found if e not in examples]
         html = generate_matrix_html(examples)
         out = RESULTS_ROOT / "report.html"

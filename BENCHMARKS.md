@@ -28,6 +28,18 @@ All times in **ns/op** (nanoseconds per operation). Lower is faster.
 | Python (numpy) | 15,706 | 5.0× |
 | Node.js | 24,939 | 7.9× |
 
+## N-body gravity (N=1000) (`nbody`)
+
+| Language | ns/op | vs fastest |
+|----------|------:|-----------:|
+| C | 1,290,305 | fastest |
+| Rust | 3,075,634 | 2.4× |
+| Go | 2,985,152 | 2.3× |
+| Java | 1,735,273 | 1.3× |
+| Python (numpy) | 16,291,248 | 12.6× |
+| Python (pure) | 197,798,439 | 153.3× |
+| Node.js | 3,065,903 | 2.4× |
+
 ---
 
 ### Notes
@@ -35,6 +47,8 @@ All times in **ns/op** (nanoseconds per operation). Lower is faster.
 - **Rust** (`wave_packet`): uses `rustfft` with SIMD mixed-radix algorithm.
 - **C** (`wave_packet`): uses FFTW single-precision (`fftwf`) with `FFTW_MEASURE`.
 - **Python (numpy)**: vectorized via numpy's `pocketfft` C backend — no Python loops in hot path.
+- **Python (numpy)** (`nbody`): vectorized broadcasting over (N,N,3) distance matrix — no Python loops in hot path.
 - **Java, Go, Node.js** (`wave_packet`): pure Cooley-Tukey FFT, no SIMD.
 - **Java**: JIT-compiled; 200 warmup iterations before timing.
 - **Python (pure)** (`bounce`): CPython interpreter loop — one ball, 1M iterations.
+- **Python (pure)** (`nbody`): CPython double loop — O(n²) with n=1000.
