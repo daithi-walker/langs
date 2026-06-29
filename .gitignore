@@ -7,6 +7,7 @@
 c/hello_world/hello
 c/physics/bounce/bench_bounce
 c/physics/bounce/main
+c/physics/nbody/nbody
 c/qc/double_slit/double_slit
 c/qc/hydrogen_orbitals/orbitals
 c/qc/wave_packet/wave_packet
