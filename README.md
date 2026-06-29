@@ -18,6 +18,7 @@ rewritten in C or Rust — backed by data, not intuition.
 | `bounce` | physics | Simple loop, float arithmetic — the baseline |
 | `wave_packet` | qc | FFT-heavy, SIMD-critical, memory-intensive TDSE step |
 | `nbody` | physics | O(n²) pairwise gravity, cache misses, irregular memory access |
+| `matmul` | physics | Dense matrix multiply — cache tiling, BLAS vs naive |
 
 ### Key findings so far
 
@@ -25,6 +26,7 @@ rewritten in C or Rust — backed by data, not intuition.
 - **SIMD/FFT-intensive work** (wave_packet): gap blows out to 7×. Library choice matters more than language.
 - **Python numpy** beats Go and Java on FFT: not a Python win — numpy dispatches into C (pocketfft), Go runs pure Cooley-Tukey with no SIMD.
 - **O(n²) cache-miss work** (nbody): C wins via auto-vectorization of the inner loop; Java JIT is surprisingly close (1.3×); Go/Rust/Node cluster at 2.3–2.4×; Python numpy 12.6× despite vectorized broadcasting (allocates a 1000×1000×3 matrix per step).
+- **Dense matrix multiply** (matmul): The most counterintuitive result — numpy/BLAS is **24× faster than C** (`-O2`). `numpy.dot` dispatches into Apple Accelerate, which uses hand-tuned NEON SIMD with cache-tiled blocking. Naive C at `-O2` generates decent code but no tiling; Go is 4× slower than C; Node.js 5.6×; Java 1.7×; pure Python 4000×+.
 
 ---
 
@@ -93,9 +95,7 @@ colour gradient from black (zero probability) to white (peak).
 
 ## Planned Examples
 
-| Example | What it tests | Why it matters |
-|---------|---------------|----------------|
-| `matmul` | Memory bandwidth, cache utilization, auto-vectorization | Shows how much `-O2` vs JIT can exploit hardware SIMD |
+Nothing planned yet — open to suggestions.
 
 ---
 
@@ -111,7 +111,8 @@ langs/
 │   ├── STANDARDS.md
 │   ├── physics/
 │   │   ├── bounce/        ← bounce benchmark
-│   │   └── nbody/         ← N-body visualizer + benchmark
+│   │   ├── nbody/         ← N-body visualizer + benchmark
+│   │   └── matmul/        ← matrix multiply benchmark
 │   └── qc/
 │       ├── hydrogen_orbitals/   ← SDL2 orbital visualizer
 │       ├── wave_packet/         ← SDL2 TDSE tunneling simulation + benchmark
@@ -120,26 +121,31 @@ langs/
 ├── rust/
 │   ├── physics/bounce/
 │   ├── physics/nbody/     ← nbody benchmark
+│   ├── physics/matmul/    ← matmul benchmark
 │   └── qc/wave_packet/    ← rustfft split-operator TDSE
 │
 ├── go/
 │   ├── physics/bounce/
 │   ├── physics/nbody/     ← nbody benchmark
+│   ├── physics/matmul/    ← matmul benchmark
 │   └── qc/wave_packet/    ← pure-Go FFT TDSE
 │
 ├── java/
 │   ├── physics/bounce/
 │   ├── physics/nbody/     ← nbody benchmark
+│   ├── physics/matmul/    ← matmul benchmark
 │   └── qc/wave_packet/    ← Cooley-Tukey FFT TDSE
 │
 ├── python/
 │   ├── physics/bounce/    ← pure Python + numpy variants
 │   ├── physics/nbody/     ← pure Python + numpy variants
+│   ├── physics/matmul/    ← pure Python + numpy.dot (BLAS) variants
 │   └── qc/wave_packet/    ← numpy FFT TDSE
 │
 ├── nodejs/
 │   ├── physics/bounce/    ← TypeScript
 │   ├── physics/nbody/     ← TypeScript
+│   ├── physics/matmul/    ← TypeScript
 │   └── qc/wave_packet/    ← TypeScript Cooley-Tukey
 │
 └── bench/

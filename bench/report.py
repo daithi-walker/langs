@@ -45,6 +45,7 @@ EXAMPLE_LABEL = {
     "bounce":      "Bouncing ball physics",
     "wave_packet": "Wave packet TDSE step",
     "nbody":       "N-body gravity (N=1000)",
+    "matmul":      "Matrix multiply N=256 (double)",
 }
 
 
@@ -228,6 +229,8 @@ def generate_markdown(examples: list[str]) -> str:
         "- **Java**: JIT-compiled; 200 warmup iterations before timing.",
         "- **Python (pure)** (`bounce`): CPython interpreter loop — one ball, 1M iterations.",
         "- **Python (pure)** (`nbody`): CPython double loop — O(n²) with n=1000.",
+        "- **Python (numpy)** (`matmul`): `numpy.dot` dispatches into Apple Accelerate BLAS — hand-tuned NEON SIMD; beats all naive implementations.",
+        "- **Python (pure)** (`matmul`): CPython triple loop — N=256, only 10 iterations due to extreme slowness.",
         "",
     ]
     return "\n".join(lines)
@@ -255,7 +258,7 @@ def main() -> None:
             print(f"No results found in {RESULTS_ROOT}", file=sys.stderr)
             sys.exit(1)
         # Respect preferred order
-        examples = [e for e in ["bounce", "wave_packet", "nbody"] if e in all_found]
+        examples = [e for e in ["bounce", "wave_packet", "nbody", "matmul"] if e in all_found]
         examples += [e for e in all_found if e not in examples]
         html = generate_matrix_html(examples)
         out = RESULTS_ROOT / "report.html"

@@ -1,0 +1,12 @@
+{
+  "name": "matmul",
+  "version": "0.1.0",
+  "scripts": {
+    "bench": "ts-node src/bench.ts"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.0",
+    "ts-node":    "^10.9.0",
+    "@types/node": "^22.0.0"
+  }
+}

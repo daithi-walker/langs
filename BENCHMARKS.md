@@ -40,6 +40,18 @@ All times in **ns/op** (nanoseconds per operation). Lower is faster.
 | Python (pure) | 197,798,439 | 153.3× |
 | Node.js | 3,065,903 | 2.4× |
 
+## Matrix multiply N=256 (double) (`matmul`)
+
+| Language | ns/op | vs fastest |
+|----------|------:|-----------:|
+| C | 2,037,140 | 24.3× |
+| Rust | 2,150,616 | 25.7× |
+| Go | 8,420,122 | 100.6× |
+| Java | 3,410,993 | 40.7× |
+| Python (numpy) | 83,740 | fastest |
+| Python (pure) | 350,753,896 | 4188.6× |
+| Node.js | 11,492,682 | 137.2× |
+
 ---
 
 ### Notes
@@ -52,3 +64,5 @@ All times in **ns/op** (nanoseconds per operation). Lower is faster.
 - **Java**: JIT-compiled; 200 warmup iterations before timing.
 - **Python (pure)** (`bounce`): CPython interpreter loop — one ball, 1M iterations.
 - **Python (pure)** (`nbody`): CPython double loop — O(n²) with n=1000.
+- **Python (numpy)** (`matmul`): `numpy.dot` dispatches into Apple Accelerate BLAS — hand-tuned NEON SIMD; beats all naive implementations.
+- **Python (pure)** (`matmul`): CPython triple loop — N=256, only 10 iterations due to extreme slowness.
